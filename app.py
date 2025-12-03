@@ -644,7 +644,12 @@ def llm_pentest():
         # Add LLM analysis to response
         extract_data['llm_pentest_analysis'] = llm_result
         
-        return jsonify(extract_data)
+        return jsonify({
+    'mode': mode,
+    'website_url': website_url,
+    'llm_pentest_analysis': llm_result,
+    'extraction_time': extract_data.get('extraction_time', 0) if isinstance(extract_data, dict) else 0
+})
         
     except Exception as e:
         return jsonify({'error': str(e), 'message': 'LLM analysis failed'}), 500
