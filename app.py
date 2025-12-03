@@ -6,14 +6,35 @@ import threading
 from collections import defaultdict, Counter
 
 app = Flask(__name__)
-
 # ---------- Ultra Fast Config ----------
-MAX_WORKERS = 20  # More workers for deep crawling
+MAX_WORKERS = 20 
 TIMEOUT = 5
 HEADERS = {
     "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36",
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
 }
+
+# ---------- LLM Pollinations AI Integration ----------
+POLLINATIONS_URL = "https://text.pollinations.ai"
+
+def query_llm(data):
+    """Send data to Pollinations AI LLM"""
+    try:
+        # Create the prompt exactly as specified
+        prompt = f"50 gray-box pentesting test cases sorted by severity critical high medium low one-line steps only no explanations based on this data: {json.dumps(data)}"
+        
+        # URL encode
+        encoded_prompt = requests.utils.quote(prompt)
+        
+        # Call Pollinations AI
+        response = requests.get(f"{POLLINATIONS_URL}/{encoded_prompt}", timeout=30)
+        
+        if response.status_code == 200:
+            return response.text
+        else:
+            return f"Error: LLM API returned {response.status_code}"
+    except Exception as e:
+        return f"Error: {str(e)}"
 
 # ---------- Deep Crawler ----------
 def deep_crawl(start_url, max_pages=50):
@@ -587,8 +608,48 @@ def scan_all_files(base_url):
     
     return results
 
+# ---------- LLM Endpoint ----------
+@app.route('/llm', methods=['POST'])
+def llm_pentest():
+    """
+    Extract website data and send to Pollinations AI for pentesting analysis
+    """
+    try:
+        data = request.get_json() or {}
+        website_url = data.get('website_url', '').strip()
+        mode = data.get('mode', 'basic').lower()  # default to basic
+        
+        if not website_url:
+            return jsonify({'error': 'website_url is required'}), 400
+        
+        print(f"🤖 LLM Pentest Analysis for: {website_url} | Mode: {mode}")
+        
+        # First extract data using existing extract function
+        with app.test_request_context('/extract', method='POST', 
+                                     json={'website_url': website_url, 'mode': mode}):
+            extract_response = extract()
+            
+            if isinstance(extract_response, tuple):
+                extract_data = extract_response[0].get_json()
+            else:
+                extract_data = extract_response.get_json()
+            
+            if 'error' in extract_data:
+                return jsonify({'error': 'Failed to extract data', 'details': extract_data}), 400
+        
+        # Send to LLM
+        print("📤 Sending data to Pollinations AI...")
+        llm_result = query_llm(extract_data)
+        
+        # Add LLM analysis to response
+        extract_data['llm_pentest_analysis'] = llm_result
+        
+        return jsonify(extract_data)
+        
+    except Exception as e:
+        return jsonify({'error': str(e), 'message': 'LLM analysis failed'}), 500
+
 # ---------- Main Endpoint ----------
-@app.route('/extract', methods=['POST'])
 @app.route('/extract', methods=['POST'])
 def extract():
     start_time = time.time()
@@ -704,18 +765,26 @@ def health_check():
         'status': 'healthy',
         'service': 'Deep Website Extractor',
         'version': '1.0',
-        'description': 'Extracts EVERYTHING from websites for LLM processing'
+        'description': 'Extracts EVERYTHING from websites for LLM processing',
+        'endpoints': {
+            '/extract': 'POST - Extract website data',
+            '/llm': 'POST - Send extracted data to LLM for pentesting analysis',
+            '/health': 'GET - Health check'
+        }
     })
 
 if __name__ == '__main__':
     print("🚀 Starting Deep Website Extractor on port 6000...")
     print("📦 Extracts: Pages, Forms, Links, Images, Scripts, Styles, Headers, Files, Content")
     print("🎯 Purpose: Provide complete website data for LLM analysis")
+    print("🤖 NEW: /llm endpoint for Pollinations AI pentesting analysis")
     app.run(host='0.0.0.0', port=6000, debug=False, threaded=True)
 
+# ---------- Usage Examples ----------
+# Extract data:
+# curl -X POST http://127.0.0.1:6000/extract -H "Content-Type: application/json" -d "{\"website_url\":\"https://example.com\", \"mode\":\"advanced\"}"
+# curl -X POST http://127.0.0.1:6000/extract -H "Content-Type: application/json" -d "{\"website_url\":\"https://example.com\", \"mode\":\"basic\"}"
 
-    ######################
-
-    
-#curl -X POST http://127.0.0.1:6000/extract -H "Content-Type: application/json" -d "{\"website_url\":\"https://safesecureaudit.in\", \"mode\":\"advance\"}"
-#curl -X POST http://127.0.0.1:6000/extract -H "Content-Type: application/json" -d "{\"website_url\":\"https://safesecureaudit.in\", \"mode\":\"basic\"}"
+# LLM Pentest Analysis:
+# curl -X POST http://127.0.0.1:6000/llm -H "Content-Type: application/json" -d "{\"website_url\":\"https://example.com\", \"mode\":\"basic\"}"
+# curl -X POST http://127.0.0.1:6000/llm -H "Content-Type: application/json" -d "{\"website_url\":\"https://example.com\", \"mode\":\"advanced\"}"
