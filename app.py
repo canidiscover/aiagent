@@ -21,7 +21,7 @@ def query_llm(data):
     """Send data to Pollinations AI LLM"""
     try:
         # Create the prompt exactly as specified
-        prompt = f"50 gray-box pentesting test cases sorted by severity critical high medium low one-line steps only no explanations based on this data: {json.dumps(data)}"
+        prompt = f"Generate only actionable gray-box pentest test cases and no theory or generic vulnerability: {json.dumps(data)}"
         
         # URL encode
         encoded_prompt = requests.utils.quote(prompt)
