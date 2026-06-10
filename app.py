@@ -23,12 +23,15 @@ def query_llm(data):
         API_KEY = "sk_XPRYHc6qZa2uOaFHHq2OYWRZjPR9elJT"
 
         prompt = (
-    "Generate exactly 20 actionable gray-box pentest test cases.\n"
-    "Format: Test Case Name - Endpoint\n"
-    "Keep names short.\n"
-    "Endpoint/path only.\n"
-    "No explanation, payloads, theory, numbering, or extra text.\n"
-    f"Website data:\n{json.dumps(data)}"
+    "Generate exactly 40 realistic gray-box pentest test cases from website data.\n"
+    "Format: Security Test Name - Endpoint\n"
+    "Only security test names, short and meaningful.\n"
+    "No generic labels, no explanations, no payloads.\n"
+    "Example:\n"
+    "CORS Misconfiguration - /login\n"
+    "Clickjacking Check - /dashboard\n"
+    "Rate Limit Check - /forgot-password\n\n"
+    f"{json.dumps(data)}"
 )
         response = requests.post(
             "https://gen.pollinations.ai/text",
