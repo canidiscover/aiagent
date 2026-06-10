@@ -23,8 +23,8 @@ def query_llm(data):
         API_KEY = "sk_XPRYHc6qZa2uOaFHHq2OYWRZjPR9elJT"
 
         prompt = (
-            "Generate exactly 50 actionable gray-box pentest test cases. "
-            "No theory, no generic vulnerabilities, only actionable tests "
+            "Generate exactly 20 actionable gray-box pentest test cases. "
+            "No theory, no generic vulnerabilities, only actionable tests in short "
             f"based on this website data:\n{json.dumps(data)}"
         )
 
