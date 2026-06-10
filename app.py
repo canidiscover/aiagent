@@ -18,21 +18,45 @@ HEADERS = {
 POLLINATIONS_URL = "https://gen.pollinations.ai/text"
 
 def query_llm(data):
-    """Send data to Pollinations AI LLM"""
+    """Send extracted data to Pollinations AI LLM"""
     try:
-        # Create the prompt exactly as specified
-        prompt = f"Generate 50 only actionable gray-box pentest test cases and no theory or generic vulnerability: {json.dumps(data)}"
-        
-        # URL encode
-        encoded_prompt = requests.utils.quote(prompt)
-        
-        # Call Pollinations AI
-        response = requests.get(f"{POLLINATIONS_URL}/{encoded_prompt}", timeout=30)
-        
+        API_KEY = "sk_XPRYHc6qZa2uOaFHHq2OYWRZjPR9elJT"
+
+        prompt = (
+            "Generate exactly 50 actionable gray-box pentest test cases. "
+            "No theory, no generic vulnerabilities, only actionable tests "
+            f"based on this website data:\n{json.dumps(data)}"
+        )
+
+        response = requests.post(
+            "https://gen.pollinations.ai/text",
+            json={
+                "messages": [
+                    {
+                        "role": "user",
+                        "content": prompt
+                    }
+                ]
+            },
+            timeout=60,
+            headers={
+                "Authorization": f"Bearer {API_KEY}",
+                "Content-Type": "application/json",
+                "User-Agent": "Mozilla/5.0"
+            }
+        )
+
+        print(f"📥 Status Code: {response.status_code}")
+        print(response.text[:500])
+
         if response.status_code == 200:
-            return response.text
-        else:
-            return f"Error: LLM API returned {response.status_code}"
+            return response.text.strip()
+
+        return (
+            f"Error: Pollinations API returned "
+            f"{response.status_code} | {response.text[:500]}"
+        )
+
     except Exception as e:
         return f"Error: {str(e)}"
 
