@@ -15,7 +15,7 @@ HEADERS = {
 }
 
 # ---------- LLM Pollinations AI Integration ----------
-POLLINATIONS_URL = "https://text.pollinations.ai"
+POLLINATIONS_URL = "https://gen.pollinations.ai/text"
 
 def query_llm(data):
     """Send data to Pollinations AI LLM"""
