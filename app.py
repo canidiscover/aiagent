@@ -4,6 +4,7 @@ from urllib.parse import urljoin, urlparse
 from bs4 import BeautifulSoup
 import threading
 from collections import defaultdict, Counter
+from openai import OpenAI
 
 app = Flask(__name__)
 # ---------- Ultra Fast Config ----------
@@ -14,56 +15,59 @@ HEADERS = {
     "Accept": "text/html,application/xhtml+xml,application/xml;q=0.9,*/*;q=0.8"
 }
 
-# ---------- LLM Pollinations AI Integration ----------
-POLLINATIONS_URL = "https://gen.pollinations.ai/text"
+# ---------- NVIDIA NEMOTRON Integration ----------
+# Paste your own NVIDIA API key below. Do not commit this file to GitHub.
+NVIDIA_API_KEY = "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"
+NVIDIA_BASE_URL = "https://integrate.api.nvidia.com/v1"
+NVIDIA_MODEL = "nvidia/nemotron-3.5-super-vl-120b-a12b"
+
+nvidia_client = OpenAI(
+    base_url=NVIDIA_BASE_URL,
+    api_key=NVIDIA_API_KEY,
+    timeout=60.0,
+)
 
 def query_llm(data):
-    """Send extracted data to Pollinations AI LLM"""
+    """Send extracted website assessment data to NVIDIA Nemotron."""
     try:
-        API_KEY = "sk_XPRYHc6qZa2uOaFHHq2OYWRZjPR9elJT"
+        if not NVIDIA_API_KEY:
+            return "Error: Missing Somthing."
 
         prompt = (
-    "Generate exactly 40 realistic gray-box pentest test cases from website data.\n"
-    "Format: Security Test Name - Endpoint\n"
-    "Only security test names, short and meaningful.\n"
-    "No generic labels, no explanations, no payloads.\n"
-    "Example:\n"
-    "CORS Misconfiguration - /login\n"
-    "Clickjacking Check - /dashboard\n"
-    "Rate Limit Check - /forgot-password\n\n"
-    f"{json.dumps(data)}"
-)
-        response = requests.post(
-            "https://gen.pollinations.ai/text",
-            json={
-                "messages": [
-                    {
-                        "role": "user",
-                        "content": prompt
-                    }
-                ]
-            },
-            timeout=60,
-            headers={
-                "Authorization": f"Bearer {API_KEY}",
-                "Content-Type": "application/json",
-                "User-Agent": "Mozilla/5.0"
-            }
+            "Generate exactly 40 realistic gray-box web security test cases "
+            "from the supplied website assessment data.\n"
+            "Format: Security Test Name - Endpoint\n"
+            "Keep names short, specific, and meaningful.\n"
+            "Use discovered endpoints where possible.\n"
+            "access control, CSRF protection, input validation, and rate limiting.\n"
+            "Do not include payloads, credentials, exploit instructions, or explanations.\n"
+            "Do not claim a vulnerability exists unless the supplied data proves it.\n"
+            "Only suggest tests for systems the operator is authorized to assess.\n\n"
+            f"Website assessment data:\n{json.dumps(data, ensure_ascii=False)[:18000]}"
         )
 
-        print(f"📥 Status Code: {response.status_code}")
-        print(response.text[:500])
-
-        if response.status_code == 200:
-            return response.text.strip()
-
-        return (
-            f"Error: Pollinations API returned "
-            f"{response.status_code} | {response.text[:500]}"
+        completion = nvidia_client.chat.completions.create(
+            model=NVIDIA_MODEL,
+            messages=[
+                {
+                    "role": "system",
+                    "content": (
+                        "You are a offensive web application security assessment assistant. "
+                        "Return concise test cases for authorized assessments only."
+                    ),
+                },
+                {"role": "user", "content": prompt},
+            ],
+            temperature=0.4,
+            top_p=0.9,
+            max_tokens=4096,
         )
 
-    except Exception as e:
-        return f"Error: {str(e)}"
+        return completion.choices[0].message.content or "No test cases were returned."
+
+    except Exception:
+        app.logger.exception("NVIDIA Nemotron request failed")
+        return "Error: NVIDIA Nemotron request failed. Check the API key, model access, and server logs."
 
 # ---------- Deep Crawler ----------
 def deep_crawl(start_url, max_pages=50):
@@ -667,7 +671,7 @@ def llm_pentest():
                 return jsonify({'error': 'Failed to extract data', 'details': extract_data}), 400
         
         # Send to LLM
-        print("📤 Sending data to Pollinations AI...")
+        print("📤 Sending data to NVIDIA Nemotron...")
         llm_result = query_llm(extract_data)
         
         # Add LLM analysis to response
@@ -808,10 +812,6 @@ def health_check():
     })
 
 if __name__ == '__main__':
-    print("🚀 Starting Deep Website Extractor on port 6000...")
-    print("📦 Extracts: Pages, Forms, Links, Images, Scripts, Styles, Headers, Files, Content")
-    print("🎯 Purpose: Provide complete website data for LLM analysis")
-    print("🤖 NEW: /llm endpoint for Pollinations AI pentesting analysis")
     app.run(host='0.0.0.0', port=6000, debug=False, threaded=True)
 
 # ---------- Usage Examples ----------
